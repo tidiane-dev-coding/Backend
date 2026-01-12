@@ -72,6 +72,15 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'API fonctionnelle' });
 });
 
+// Route health check (anti-sommeil)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 // Gestion des erreurs
 app.use((err, req, res, next) => {
   console.error(err.stack);
