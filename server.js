@@ -11,26 +11,31 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Servir les fichiers statiques (photos)
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Servir également les assets (logo, images statiques)
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Connexion MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/gestion-douk-rh', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(async () => {
-  console.log('✅ MongoDB connecté');
-  
-  // Initialiser l'admin par défaut si il n'existe pas
-  await initDefaultAdmin();
-})
-.catch(err => console.error('❌ Erreur MongoDB:', err));
+  .then(async () => {
+    console.log('✅ MongoDB connecté');
+
+    // Initialiser l'admin par défaut si il n'existe pas
+    await initDefaultAdmin();
+  })
+  .catch(err => console.error('❌ Erreur MongoDB:', err));
 
 // Fonction pour initialiser l'admin par défaut
 const initDefaultAdmin = async () => {
   try {
     const User = require('./src/models/User.model');
     const existingAdmin = await User.findOne({ email: 'admin@douk.com' });
-    
+
     if (!existingAdmin) {
       const admin = await User.create({
         username: 'admin',
@@ -59,6 +64,7 @@ app.use('/api/attendance', require('./src/routes/attendance.routes'));
 app.use('/api/leaves', require('./src/routes/leave.routes'));
 app.use('/api/stats', require('./src/routes/stats.routes'));
 app.use('/api/exports', require('./src/routes/export.routes'));
+app.use('/api/payrolls', require('./src/routes/payroll.routes'));
 
 // Log des routes pour débogage
 console.log('📋 Routes disponibles:');
@@ -66,6 +72,7 @@ console.log('   POST /api/auth/register');
 console.log('   POST /api/auth/login');
 console.log('   GET  /api/auth/me');
 console.log('   GET  /api/test');
+console.log('   CRUD /api/payrolls');
 
 // Route de test
 app.get('/api/test', (req, res) => {
@@ -74,7 +81,7 @@ app.get('/api/test', (req, res) => {
 
 // Route health check (anti-sommeil)
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()

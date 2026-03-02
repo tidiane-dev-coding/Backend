@@ -7,7 +7,7 @@ exports.getAllAttendance = async (req, res) => {
   try {
     const { startDate, endDate, employeeId } = req.query;
     let query = {};
-    
+
     if (startDate || endDate) {
       query.date = {};
       if (startDate) {
@@ -21,11 +21,11 @@ exports.getAllAttendance = async (req, res) => {
         query.date.$lte = end;
       }
     }
-    
+
     if (employeeId) {
       query.employee = employeeId;
     }
-    
+
     // Filtrer selon le rôle
     const requester = req.user;
     if (requester && requester.role !== 'admin' && requester.role !== 'service_admin') {
@@ -51,11 +51,11 @@ exports.getAllAttendance = async (req, res) => {
         return res.json([]);
       }
     }
-    
+
     const attendance = await Attendance.find(query)
       .populate('employee', 'nom matricule poste')
       .sort({ date: -1, heureArrivee: -1 });
-    
+
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -68,7 +68,7 @@ exports.getAttendanceById = async (req, res) => {
     if (!attendance) {
       return res.status(404).json({ message: 'Présence non trouvée' });
     }
-    
+
     // Vérifier les permissions selon le rôle
     const requester = req.user;
     if (requester && requester.role !== 'admin' && requester.role !== 'service_admin') {
@@ -98,7 +98,7 @@ exports.getAttendanceById = async (req, res) => {
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez voir que les pointages des employés de votre service.' });
       }
     }
-    
+
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -147,7 +147,7 @@ exports.checkIn = async (req, res) => {
     });
 
     if (existingAttendance) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Pointage déjà effectué aujourd\'hui',
         attendance: existingAttendance
       });
@@ -157,7 +157,7 @@ exports.checkIn = async (req, res) => {
     const attendancePayload = {
       employee: employee._id,
       matricule: employee.matricule,
-      nom: employee.nom,
+      nom: `${employee.nom} ${employee.prenom || ''}`.trim(),
       date: new Date(),
       heureArrivee: new Date()
     };
@@ -178,7 +178,7 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const { matricule } = req.body;
-    
+
     // Trouver l'employé
     const employee = await Employee.findOne({ matricule });
     if (!employee) {
@@ -204,7 +204,7 @@ exports.checkOut = async (req, res) => {
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez pointer que pour les employés de votre service.' });
       }
     }
-    
+
     // Trouver le pointage du jour
     const today = dayjs().startOf('day');
     const attendance = await Attendance.findOne({
@@ -214,19 +214,19 @@ exports.checkOut = async (req, res) => {
         $lt: today.add(1, 'day').toDate()
       }
     });
-    
+
     if (!attendance) {
       return res.status(404).json({ message: 'Aucun pointage d\'arrivée trouvé pour aujourd\'hui' });
     }
-    
+
     if (attendance.heureDepart) {
       return res.status(400).json({ message: 'Pointage de départ déjà effectué' });
     }
-    
+
     // Enregistrer le départ
     attendance.heureDepart = new Date();
     await attendance.save();
-    
+
     const populatedAttendance = await Attendance.findById(attendance._id).populate('employee');
     res.json(populatedAttendance);
   } catch (error) {
@@ -268,7 +268,7 @@ exports.markAbsence = async (req, res) => {
     const attendancePayload = {
       employee: employee._id,
       matricule: employee.matricule,
-      nom: employee.nom,
+      nom: `${employee.nom} ${employee.prenom || ''}`.trim(),
       date: targetDay.toDate(),
       statut: 'absent'
     }
@@ -278,8 +278,8 @@ exports.markAbsence = async (req, res) => {
 
     // Vérifier la taille du proof (limite MongoDB: 16MB, mais on limite à 5MB pour sécurité)
     if (proof && proof.length > 5 * 1024 * 1024) {
-      return res.status(400).json({ 
-        message: 'La preuve est trop volumineuse. Veuillez utiliser une image plus petite (max 5MB).' 
+      return res.status(400).json({
+        message: 'La preuve est trop volumineuse. Veuillez utiliser une image plus petite (max 5MB).'
       });
     }
 
@@ -289,16 +289,16 @@ exports.markAbsence = async (req, res) => {
       res.status(201).json(populatedAttendance);
     } catch (dbError) {
       if (dbError.message && dbError.message.includes('too large')) {
-        return res.status(400).json({ 
-          message: 'La preuve est trop volumineuse. Veuillez utiliser une image plus petite.' 
+        return res.status(400).json({
+          message: 'La preuve est trop volumineuse. Veuillez utiliser une image plus petite.'
         });
       }
       throw dbError;
     }
   } catch (error) {
     console.error('Erreur markAbsence:', error);
-    res.status(500).json({ 
-      message: error.message || 'Erreur lors de l\'enregistrement de l\'absence. Veuillez réessayer.' 
+    res.status(500).json({
+      message: error.message || 'Erreur lors de l\'enregistrement de l\'absence. Veuillez réessayer.'
     });
   }
 };
@@ -310,11 +310,11 @@ exports.updateAttendance = async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     ).populate('employee');
-    
+
     if (!attendance) {
       return res.status(404).json({ message: 'Présence non trouvée' });
     }
-    
+
     res.json(attendance);
   } catch (error) {
     res.status(500).json({ message: error.message });

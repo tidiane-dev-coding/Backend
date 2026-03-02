@@ -7,9 +7,9 @@ exports.getAllEmployees = async (req, res) => {
   try {
     // Récupérer l'utilisateur connecté avec son service
     const user = await User.findById(req.user._id || req.user.id).populate('service');
-    
+
     let query = {};
-    
+
     // Si l'utilisateur n'est pas admin ou service_admin, ne retourner que SON propre profil employé
     if (user.role !== 'admin' && user.role !== 'service_admin') {
       // Filtrer uniquement l'employé lié à cet utilisateur
@@ -19,7 +19,7 @@ exports.getAllEmployees = async (req, res) => {
       const userServiceId = user.service._id || user.service;
       query.service = userServiceId;
     }
-    
+
     const employees = await Employee.find(query).populate('service').sort({ createdAt: -1 });
     res.json(employees);
   } catch (error) {
@@ -33,7 +33,7 @@ exports.getEmployeeById = async (req, res) => {
     if (!employee) {
       return res.status(404).json({ message: 'Employé non trouvé' });
     }
-    
+
     // Vérifier les permissions selon le rôle
     const requester = req.user;
     if (requester && requester.role !== 'admin' && requester.role !== 'service_admin') {
@@ -53,7 +53,7 @@ exports.getEmployeeById = async (req, res) => {
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez voir que les employés de votre service.' });
       }
     }
-    
+
     res.json(employee);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -66,7 +66,7 @@ exports.getEmployeeByMatricule = async (req, res) => {
     if (!employee) {
       return res.status(404).json({ message: 'Employé non trouvé' });
     }
-    
+
     // Vérifier les permissions selon le rôle
     const requester = req.user;
     if (requester && requester.role !== 'admin' && requester.role !== 'service_admin') {
@@ -86,7 +86,7 @@ exports.getEmployeeByMatricule = async (req, res) => {
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez voir que les employés de votre service.' });
       }
     }
-    
+
     res.json(employee);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -96,7 +96,7 @@ exports.getEmployeeByMatricule = async (req, res) => {
 exports.createEmployee = async (req, res) => {
   try {
     const employeeData = req.body;
-    
+
     // Supprimer l'ancienneté des données car elle sera calculée automatiquement à partir de dateEmbauche
     delete employeeData.anciennete;
 
@@ -127,6 +127,15 @@ exports.createEmployee = async (req, res) => {
     // Générer le QR code
     const qrCodeDataUrl = await QRCode.toDataURL(employeeData.matricule);
     employeeData.qrCode = qrCodeDataUrl;
+
+    // Gérer l'upload de photo
+    if (req.file) {
+      // Stocker le chemin relatif normalized.ex: uploads\file.jpg -> uploads/file.jpg
+      employeeData.photo = req.file.path.replace(/\\/g, '/').split('uploads/').pop();
+      // On stocke seulement le nom du fichier ou le chemin relatif
+      // Pour être plus simple, stockons 'uploads/filename'
+      employeeData.photo = 'uploads/' + req.file.filename;
+    }
 
     const employee = await Employee.create(employeeData);
     const populatedEmployee = await Employee.findById(employee._id).populate('service');
@@ -178,9 +187,15 @@ exports.updateEmployee = async (req, res) => {
     // Supprimer l'ancienneté des données car elle sera calculée automatiquement à partir de dateEmbauche
     const updateData = { ...req.body };
     delete updateData.anciennete;
-    
+
     // Appliquer les modifications
     Object.assign(employee, updateData);
+
+    // Gérer l'upload de photo
+    if (req.file) {
+      employee.photo = 'uploads/' + req.file.filename;
+    }
+
     // Régénérer QR si matricule modifié
     if (req.body.matricule && req.body.matricule !== employee.matricule) {
       const qrCodeDataUrl = await QRCode.toDataURL(req.body.matricule);
@@ -188,7 +203,7 @@ exports.updateEmployee = async (req, res) => {
     }
     await employee.save();
     await employee.populate('service');
-    
+
     res.json(employee);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -223,7 +238,7 @@ exports.getQRCode = async (req, res) => {
     if (!employee) {
       return res.status(404).json({ message: 'Employé non trouvé' });
     }
-    
+
     // Vérifier les permissions selon le rôle
     const requester = req.user;
     if (requester && requester.role !== 'admin' && requester.role !== 'service_admin') {
@@ -243,7 +258,7 @@ exports.getQRCode = async (req, res) => {
         return res.status(403).json({ message: 'Accès refusé. Vous ne pouvez voir que les QR codes des employés de votre service.' });
       }
     }
-    
+
     res.json({ qrCode: employee.qrCode });
   } catch (error) {
     res.status(500).json({ message: error.message });

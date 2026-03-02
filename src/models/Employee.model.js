@@ -19,10 +19,19 @@ const employeeSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  prenom: {
+    type: String,
+    required: true,
+    trim: true
+  },
   poste: {
     type: String,
     required: true,
     trim: true
+  },
+  photo: {
+    type: String, // Chemin relatif vers le fichier
+    default: null
   },
   genre: {
     type: String,
@@ -32,6 +41,11 @@ const employeeSchema = new mongoose.Schema({
   dateNaissance: {
     type: Date,
     required: true
+  },
+  lieuNaissance: {
+    type: String,
+    required: true,
+    trim: true
   },
   lieuResidence: {
     type: String,
@@ -101,12 +115,12 @@ const employeeSchema = new mongoose.Schema({
 });
 
 // Générer le QR code et calculer l'ancienneté avant sauvegarde
-employeeSchema.pre('save', async function(next) {
+employeeSchema.pre('save', async function (next) {
   // Calculer l'ancienneté automatiquement à partir de la date d'embauche
   if (this.dateEmbauche) {
     const today = dayjs();
     const hireDate = dayjs(this.dateEmbauche);
-    
+
     if (hireDate.isBefore(today) || hireDate.isSame(today, 'day')) {
       // Calculer la différence en années
       const years = today.diff(hireDate, 'year');
@@ -120,7 +134,7 @@ employeeSchema.pre('save', async function(next) {
     // Pas de date d'embauche, ancienneté = 0
     this.anciennete = 0;
   }
-  
+
   // Générer le QR code
   if (!this.qrCode) {
     const QRCode = require('qrcode');
@@ -134,22 +148,22 @@ employeeSchema.pre('save', async function(next) {
 });
 
 // Méthode virtuelle pour obtenir l'ancienneté détaillée (années, mois, jours)
-employeeSchema.virtual('ancienneteDetaillee').get(function() {
+employeeSchema.virtual('ancienneteDetaillee').get(function () {
   if (!this.dateEmbauche) {
     return { annees: 0, mois: 0, jours: 0 };
   }
-  
+
   const today = dayjs();
   const hireDate = dayjs(this.dateEmbauche);
-  
+
   if (hireDate.isAfter(today)) {
     return { annees: 0, mois: 0, jours: 0 };
   }
-  
+
   let years = today.diff(hireDate, 'year');
   let months = today.diff(hireDate.add(years, 'year'), 'month');
   let days = today.diff(hireDate.add(years, 'year').add(months, 'month'), 'day');
-  
+
   return { annees: years, mois: months, jours: days };
 });
 
